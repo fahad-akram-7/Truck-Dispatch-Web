@@ -26,6 +26,11 @@ export const api = async (path, options = {}) => {
         options: { data: { fullName, role } }
       });
       if (authError) throw authError;
+      if (!authData?.user?.id) {
+        throw new Error(
+          "Signup succeeded but Supabase returned no user ID. Check email confirmation settings and Supabase client env variables."
+        );
+      }
 
       // Upsert into User table (prevent duplicate key errors from trigger)
       const { data: userData, error: userError } = await supabase
@@ -102,6 +107,11 @@ export const api = async (path, options = {}) => {
         options: { data: { fullName, role: "DRIVER" } }
       });
       if (authError) throw authError;
+      if (!authData?.user?.id) {
+        throw new Error(
+          "Signup succeeded but Supabase returned no user ID. Check email confirmation settings and Supabase client env variables."
+        );
+      }
 
       // Create User record (using upsert to avoid conflict with the auth trigger)
       const { data: userData, error: userError } = await supabase

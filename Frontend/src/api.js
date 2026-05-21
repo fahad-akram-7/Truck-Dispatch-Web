@@ -27,15 +27,15 @@ export const api = async (path, options = {}) => {
       });
       if (authError) throw authError;
 
-      // Insert into User table
+      // Upsert into User table (prevent duplicate key errors from trigger)
       const { data: userData, error: userError } = await supabase
         .from("User")
-        .insert({
+        .upsert({
           id: authData.user.id, // Match the Auth UID!
           fullName,
           email,
           role: role || "CUSTOMER"
-        })
+        }, { onConflict: "id" })
         .select()
         .single();
       if (userError) throw userError;
@@ -103,15 +103,15 @@ export const api = async (path, options = {}) => {
       });
       if (authError) throw authError;
 
-      // Create User record
+      // Create User record (using upsert to avoid conflict with the auth trigger)
       const { data: userData, error: userError } = await supabase
         .from("User")
-        .insert({
+        .upsert({
           id: authData.user.id,
           fullName,
           email,
           role: "DRIVER"
-        })
+        }, { onConflict: "id" })
         .select()
         .single();
       if (userError) throw userError;

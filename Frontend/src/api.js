@@ -19,11 +19,16 @@ export const api = async (path, options = {}) => {
     if (path === "/auth/register" && method === "POST") {
       const { email, password, fullName, role, licenseNo, phone } = body;
       
-      // Create user in Supabase Auth
+      // Create user in Supabase Auth (sanitize metadata to avoid DB trigger cast errors)
+      const meta = {};
+      if (fullName) meta.fullName = fullName;
+      const VALID_ROLES = ["ADMIN", "DRIVER", "CUSTOMER"];
+      if (role && VALID_ROLES.includes(role)) meta.role = role;
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { fullName, role } }
+        options: { data: meta }
       });
       if (authError) throw authError;
       if (!authData?.user?.id) {
@@ -101,10 +106,15 @@ export const api = async (path, options = {}) => {
       const { email, password, fullName, phone, licenseNo, currentCity } = body;
 
       // Sign up the driver user
+      const meta = {};
+      if (fullName) meta.fullName = fullName;
+      const VALID_ROLES = ["ADMIN", "DRIVER", "CUSTOMER"];
+      meta.role = "DRIVER";
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { fullName, role: "DRIVER" } }
+        options: { data: meta }
       });
       if (authError) throw authError;
       if (!authData?.user?.id) {

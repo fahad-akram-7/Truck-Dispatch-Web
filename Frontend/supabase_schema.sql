@@ -8,13 +8,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 DO $$
 BEGIN
   BEGIN
-    CREATE TYPE "Role" AS ENUM ('ADMIN', 'DRIVER', 'CUSTOMER');
+    CREATE TYPE public."Role" AS ENUM ('ADMIN', 'DRIVER', 'CUSTOMER');
   EXCEPTION WHEN duplicate_object THEN
     NULL;
   END;
 
   BEGIN
-    CREATE TYPE "RequestStatus" AS ENUM (
+    CREATE TYPE public."RequestStatus" AS ENUM (
       'PENDING',
       'QUOTED',
       'ASSIGNED',
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public."User" (
   "id" UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   "fullName" TEXT NOT NULL,
   "email" TEXT UNIQUE NOT NULL,
-  "role" "Role" DEFAULT 'CUSTOMER'::"Role" NOT NULL,
+  "role" public."Role" DEFAULT 'CUSTOMER'::public."Role" NOT NULL,
   "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS public."LoadRequest" (
   "distanceKm" DOUBLE PRECISION NOT NULL,
   "priority" TEXT DEFAULT 'STANDARD' NOT NULL,
   "requestedDate" TIMESTAMP WITH TIME ZONE NOT NULL,
-  "status" "RequestStatus" DEFAULT 'PENDING'::"RequestStatus" NOT NULL,
+  "status" public."RequestStatus" DEFAULT 'PENDING'::public."RequestStatus" NOT NULL,
   "notes" TEXT,
   "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS public."Dispatch" (
   "driverId" TEXT NOT NULL REFERENCES public."Driver"("id") ON DELETE RESTRICT,
   "assignedById" UUID NOT NULL REFERENCES public."User"("id") ON DELETE RESTRICT,
   "assignedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  "currentStatus" "RequestStatus" DEFAULT 'ASSIGNED'::"RequestStatus" NOT NULL,
+  "currentStatus" public."RequestStatus" DEFAULT 'ASSIGNED'::public."RequestStatus" NOT NULL,
   "etaDate" TIMESTAMP WITH TIME ZONE
 );
 
@@ -180,7 +180,7 @@ $$;
 CREATE TABLE IF NOT EXISTS public."StatusLog" (
   "id" TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
   "dispatchId" TEXT NOT NULL REFERENCES public."Dispatch"("id") ON DELETE CASCADE,
-  "status" "RequestStatus" NOT NULL,
+  "status" public."RequestStatus" NOT NULL,
   "note" TEXT,
   "updatedById" UUID NOT NULL REFERENCES public."User"("id") ON DELETE RESTRICT,
   "timestamp" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -206,13 +206,23 @@ $$;
 -- 8. Auth Trigger: Automatically create public."User" when user signs up in auth.users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  incoming_role_text TEXT;
+  incoming_role public."Role";
 BEGIN
+  incoming_role_text := new.raw_user_meta_data->>'role';
+  IF incoming_role_text IS NOT NULL AND incoming_role_text IN ('ADMIN','DRIVER','CUSTOMER') THEN
+    incoming_role := incoming_role_text::public."Role";
+  ELSE
+    incoming_role := 'CUSTOMER'::public."Role";
+  END IF;
+
   INSERT INTO public."User" (id, "fullName", email, role)
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'fullName', 'New User'),
     new.email,
-    COALESCE((new.raw_user_meta_data->>'role')::"Role", 'CUSTOMER'::"Role")
+    incoming_role
   );
   RETURN NEW;
 END;

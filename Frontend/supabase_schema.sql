@@ -4,7 +4,7 @@
 -- Enable UUID extension for string-based primary keys
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Create Enums only if they do not already exist
+-- 1. Create Enums safely
 DO $$
 BEGIN
   BEGIN
@@ -14,7 +14,14 @@ BEGIN
   END;
 
   BEGIN
-    CREATE TYPE "RequestStatus" AS ENUM ('PENDING', 'QUOTED', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED');
+    CREATE TYPE "RequestStatus" AS ENUM (
+      'PENDING',
+      'QUOTED',
+      'ASSIGNED',
+      'IN_TRANSIT',
+      'DELIVERED',
+      'CANCELLED'
+    );
   EXCEPTION WHEN duplicate_object THEN
     NULL;
   END;
@@ -60,7 +67,6 @@ CREATE TABLE IF NOT EXISTS public."Driver" (
   "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Enable Realtime on Driver table
 DO $$
 BEGIN
   IF NOT EXISTS (

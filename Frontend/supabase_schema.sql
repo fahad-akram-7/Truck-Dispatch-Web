@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS public."User" (
   "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public."User" DISABLE ROW LEVEL SECURITY;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
